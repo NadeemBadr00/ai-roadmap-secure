@@ -22,9 +22,10 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 // --- GEMINI SETUP ---
-// ملاحظة: يُفضل استخدام بروكسي للمفتاح في الإنتاج، لكن للبروتوتايب سنستخدمه هنا
-const genAI = new GoogleGenerativeAI(firebaseConfig.apiKey); // Using Firebase API Key temporarily or replace with dedicated Gemini Key
+const genAI = new GoogleGenerativeAI(firebaseConfig.apiKey);
 const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+
+const PEXELS_KEY = '563492ad6f917000010000019050d293d07e4776a33742460269382f'; // مفتاح بيكسلز للصور
 
 // --- SYSTEM PROMPT ---
 const SYSTEM_PROMPT = `
@@ -101,7 +102,6 @@ export async function renderAITutor(container) {
     const input = document.getElementById('user-input');
     const messages = document.getElementById('chat-messages');
 
-    // Auto-resize textarea
     input.addEventListener('input', function() {
         this.style.height = 'auto';
         this.style.height = (this.scrollHeight) + 'px';
@@ -112,12 +112,10 @@ export async function renderAITutor(container) {
         const text = input.value.trim();
         if (!text) return;
 
-        // User Message
         appendMessage(text, 'user', messages);
         input.value = '';
         input.style.height = 'auto';
 
-        // AI Loading
         const loadingId = appendLoading(messages);
 
         try {
@@ -131,6 +129,8 @@ export async function renderAITutor(container) {
         }
     };
 }
+
+// --- HELPER FUNCTIONS ---
 
 function appendMessage(text, type, container) {
     const div = document.createElement('div');
@@ -187,19 +187,14 @@ function removeLoading(id) {
     if (el) el.remove();
 }
 
-// --- GEMINI API CALL ---
+// --- GEMINI & MEDIA API ---
+
 export async function askGemini(prompt) {
     try {
         const chat = model.startChat({
             history: [
-                {
-                    role: "user",
-                    parts: [{ text: SYSTEM_PROMPT }],
-                },
-                {
-                    role: "model",
-                    parts: [{ text: "مرحباً! أنا جاهز لمساعدتك كمعلم ذكي. تفضل بسؤالك." }],
-                },
+                { role: "user", parts: [{ text: SYSTEM_PROMPT }] },
+                { role: "model", parts: [{ text: "مرحباً! أنا جاهز للمساعدة." }] },
             ],
         });
 
@@ -209,5 +204,30 @@ export async function askGemini(prompt) {
     } catch (error) {
         console.error("Gemini Error:", error);
         throw error;
+    }
+}
+
+/**
+ * دالة البحث عن وسائط (صور/فيديو) من Pexels
+ * تستخدم في توليد الفيديوهات التعليمية
+ */
+export async function getSmartMedia(query, type = 'video') {
+    try {
+        const url = type === 'video' 
+            ? `https://api.pexels.com/videos/search?query=${query}&per_page=1&orientation=landscape`
+            : `https://api.pexels.com/v1/search?query=${query}&per_page=1&orientation=landscape`;
+
+        const res = await fetch(url, { headers: { Authorization: PEXELS_KEY } });
+        const data = await res.json();
+        
+        if (type === 'video' && data.videos && data.videos.length > 0) {
+            return data.videos[0].video_files[0].link;
+        } else if (type === 'image' && data.photos && data.photos.length > 0) {
+            return data.photos[0].src.medium;
+        }
+        return null;
+    } catch (e) {
+        console.error("Media Fetch Error:", e);
+        return null;
     }
 }
