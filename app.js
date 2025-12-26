@@ -1,37 +1,37 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import { getAuth, signInWithPopup, signInAnonymously, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, updateDoc, arrayUnion, arrayRemove, collection, addDoc, deleteDoc, getDocs, query, where } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-// استيراد الواجهات من الملف الجديد
+// استيراد الواجهات
 import * as UI from './ui.js';
 import { renderAITutor } from './chat.js';
 import { addXP, updateSocialLinks } from './gamification.js';
+// استيراد دالة الاتصال الآمن بالسيرفر
+import { secureToggleLesson } from './api_client.js';
 
 // --- FIREBASE CONFIGURATION ---
-    const firebaseConfig = {
-      apiKey: "AIzaSyA6WQKgXjdqe3ghQEQ5EXAMZM7ffiWlabk",
-      authDomain: "ai-roadmap-jnadeem.firebaseapp.com",
-      projectId: "ai-roadmap-jnadeem",
-      storageBucket: "ai-roadmap-jnadeem.firebasestorage.app",
-      messagingSenderId: "332299268804",
-      appId: "1:332299268804:web:225b27d243845688194f91",
-      measurementId: "G-P8E119RZDX"
-    };
+const firebaseConfig = {
+  apiKey: "AIzaSyA6WQKgXjdqe3ghQEQ5EXAMZM7ffiWlabk",
+  authDomain: "ai-roadmap-jnadeem.firebaseapp.com",
+  projectId: "ai-roadmap-jnadeem",
+  storageBucket: "ai-roadmap-jnadeem.firebasestorage.app",
+  messagingSenderId: "332299268804",
+  appId: "1:332299268804:web:225b27d243845688194f91",
+  measurementId: "G-P8E119RZDX"
+};
 
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// تصدير المتغيرات
+export { app, auth, db };
+
 let currentUser = null;
 let isAdmin = false;
-
-// Admin Email
 const ADMIN_EMAILS = ["nadembadrs1@gmail.com"]; 
-
-// --- DOM CACHE ---
 const DOM = { main: document.getElementById('main-content') };
-
-// --- GLOBAL STATE ---
 let globalCourses = [];
 
 // --- INITIAL SEED DATA ---
@@ -91,7 +91,6 @@ const initialCourses = [
 ];
 
 // --- DATA MANAGEMENT ---
-
 async function fetchCourses() {
     try {
         const querySnapshot = await getDocs(collection(db, "courses"));
@@ -117,65 +116,66 @@ async function fetchCourses() {
     }
 }
 
-// --- LOGIC: PROGRESS & NOTES & GAMIFICATION ---
+// --- SECURE LOGIC IMPL (تطبيق المنطق الآمن) ---
 
+// 1. دالة إكمال الدروس (تتصل بـ Netlify Function)
 window.toggleLesson = async (courseId, lessonIdx, checkbox) => {
-    if (!currentUser || currentUser.isAnonymous) return alert("يرجى تسجيل الدخول لحفظ التقدم");
+    if (!currentUser || currentUser.isAnonymous) {
+        checkbox.checked = !checkbox.checked; // إلغاء التحديد بصرياً
+        return alert("يرجى تسجيل الدخول لحفظ التقدم");
+    }
     
-    const userRef = doc(db, 'users', currentUser.uid);
-    const progressKey = `progress.${courseId}`;
+    // حفظ الحالة القديمة للتراجع عند الخطأ
+    const originalState = !checkbox.checked;
     
     try {
-        if (checkbox.checked) {
-            await updateDoc(userRef, {
-                [progressKey]: arrayUnion(lessonIdx)
-            });
-            await addXP(db, currentUser.uid, 50);
-        } else {
-            await updateDoc(userRef, {
-                [progressKey]: arrayRemove(lessonIdx)
-            });
-        }
-        UI.renderCourseDetail(DOM.main, db, currentUser, isAdmin, globalCourses, courseId);
+        // إظهار حالة التحميل (اختياري)
+        // استدعاء الدالة الآمنة
+        await secureToggleLesson(courseId, lessonIdx, checkbox.checked);
+        
+        // إعادة تحميل الواجهة لتحديث شريط التقدم والنقاط
+        // ننتظر قليلاً لضمان تحديث قاعدة البيانات
+        setTimeout(() => {
+             UI.renderCourseDetail(DOM.main, db, currentUser, isAdmin, globalCourses, courseId);
+             // تحديث الهيدر أيضاً لإظهار النقاط الجديدة إن وجدت (يمكن تحسينه لاحقاً)
+        }, 500);
+        
     } catch (e) {
-        console.error("Progress Error:", e);
-        const obj = {};
-        obj[`progress.${courseId}`] = checkbox.checked ? arrayUnion(lessonIdx) : arrayRemove(lessonIdx);
-        await setDoc(userRef, { progress: { [courseId]: checkbox.checked ? [lessonIdx] : [] } }, { merge: true });
-        if(checkbox.checked) await addXP(db, currentUser.uid, 50);
-        UI.renderCourseDetail(DOM.main, db, currentUser, isAdmin, globalCourses, courseId);
+        console.error("Secure Toggle Failed:", e);
+        alert("فشل تحديث التقدم: " + e.message);
+        checkbox.checked = originalState; // التراجع
     }
 };
 
+// 2. دالة حفظ الملاحظات (ما زالت Client-Side لأنها مسموحة في القواعد)
 let noteTimeout;
 window.saveNote = (courseId, textarea) => {
     if (!currentUser || currentUser.isAnonymous) return;
     
     const statusEl = document.getElementById('note-status');
-    statusEl.innerText = "جاري الكتابة...";
-    statusEl.className = "text-xs text-gray-400";
+    if(statusEl) { statusEl.innerText = "جاري الكتابة..."; statusEl.className = "text-xs text-gray-400"; }
 
     clearTimeout(noteTimeout);
     noteTimeout = setTimeout(async () => {
-        statusEl.innerText = "جاري الحفظ...";
+        if(statusEl) statusEl.innerText = "جاري الحفظ...";
         try {
             const userRef = doc(db, 'users', currentUser.uid);
             await setDoc(userRef, {
                 notes: { [courseId]: textarea.value }
             }, { merge: true });
             
-            await addXP(db, currentUser.uid, 10);
+            // إضافة نقاط بسيطة للمشاركة (اختياري - سيحتاج تعديل القواعد لو أردتها آمنة)
+            // await addXP(db, currentUser.uid, 10); // تم إيقافها لأنها Client-Side وممنوعة الآن
 
-            statusEl.innerText = "تم الحفظ ✓";
-            statusEl.className = "text-xs text-green-600 font-bold";
+            if(statusEl) { statusEl.innerText = "تم الحفظ ✓"; statusEl.className = "text-xs text-green-600 font-bold"; }
         } catch (e) {
             console.error(e);
-            statusEl.innerText = "خطأ في الحفظ";
-            statusEl.className = "text-xs text-red-500";
+            if(statusEl) { statusEl.innerText = "خطأ في الحفظ"; statusEl.className = "text-xs text-red-500"; }
         }
     }, 1000); 
 };
 
+// 3. دالة حفظ الروابط الاجتماعية
 window.saveSocialLinks = async (e) => {
     e.preventDefault();
     if (!currentUser || currentUser.isAnonymous) return alert("يرجى تسجيل الدخول");
@@ -184,67 +184,22 @@ window.saveSocialLinks = async (e) => {
     const linkedin = formData.get('linkedin').trim();
     const github = formData.get('github').trim();
     
-    const links = { linkedin, github };
-    
     const btn = e.target.querySelector('button');
     const originalText = btn.innerText;
     btn.disabled = true;
     btn.innerText = "جاري الحفظ...";
     
-    await updateSocialLinks(db, currentUser.uid, links);
-    
-    if (linkedin || github) {
-        const userRef = doc(db, 'users', currentUser.uid);
-        const snap = await getDoc(userRef);
-        if (snap.exists() && !snap.data().hasProfileXP) {
-            await addXP(db, currentUser.uid, 100); 
-            await setDoc(userRef, { hasProfileXP: true }, { merge: true });
-            console.log("Profile Completion XP Awarded!");
-        }
-    }
+    await updateSocialLinks(db, currentUser.uid, { linkedin, github });
     
     btn.disabled = false;
     btn.innerText = originalText;
 };
 
-// --- ADMIN FUNCTIONS ---
-
-async function addCourse(courseData) {
-    if (!isAdmin) return alert("غير مصرح");
-    try {
-        const id = courseData.id || 'course_' + Date.now();
-        courseData.lessons = [
-            { title: "مقدمة الكورس", duration: "10:00" },
-            { title: "الدرس الأول", duration: "15:00" },
-            { title: "الدرس الثاني", duration: "20:00" }
-        ];
-        await setDoc(doc(db, "courses", id), { ...courseData, id });
-        alert("تمت إضافة الكورس بنجاح!");
-        await fetchCourses();
-        UI.renderAdminDashboard(DOM.main, db, isAdmin, globalCourses);
-    } catch (e) {
-        alert("حدث خطأ: " + e.message);
-    }
-}
-
-async function deleteCourse(courseId) {
-    if (!isAdmin) return alert("غير مصرح");
-    if (!confirm("هل أنت متأكد من حذف هذا الكورس؟")) return;
-    try {
-        await deleteDoc(doc(db, "courses", courseId));
-        alert("تم الحذف.");
-        await fetchCourses();
-        UI.renderAdminDashboard(DOM.main, db, isAdmin, globalCourses);
-    } catch (e) {
-        alert("حدث خطأ: " + e.message);
-    }
-}
 
 // --- ROUTING ---
 async function route() {
     const hash = window.location.hash.substring(1) || 'dashboard';
     
-    // Check Auth
     if(!currentUser && hash !== 'auth') { 
         UI.renderAuth(DOM.main, auth, signInWithPopup, signInAnonymously, GoogleAuthProvider, setDoc); 
         return; 
@@ -254,12 +209,10 @@ async function route() {
         return; 
     }
 
-    // Clean UI
     document.getElementById('app').classList.remove('hidden');
     setTimeout(() => document.getElementById('app').classList.remove('opacity-0'), 50);
     document.getElementById('loader').classList.add('hidden');
 
-    // Routing Logic using UI Module
     if(hash === 'dashboard') await UI.renderDashboard(DOM.main, db, currentUser, isAdmin, globalCourses); 
     else if(hash === 'courses') await UI.renderCourses(DOM.main, db, isAdmin, globalCourses);
     else if(hash === 'aitutor') await renderAITutor(DOM.main); 
@@ -269,9 +222,6 @@ async function route() {
 }
 
 // --- INITIALIZATION ---
-window.deleteCourse = deleteCourse; 
-window.addCourse = addCourse;
-
 onAuthStateChanged(auth, async (u) => {
     currentUser = u;
     if(u) {
@@ -281,12 +231,6 @@ onAuthStateChanged(auth, async (u) => {
         document.getElementById('user-initial').textContent = u.displayName?.[0] || 'U';
         document.getElementById('header-username').textContent = u.displayName || 'زائر';
         
-        const adminLink = document.getElementById('admin-sidebar-link');
-        if(adminLink) {
-             if(isAdmin) adminLink.classList.remove('hidden');
-             else adminLink.classList.add('hidden');
-        }
-
         const overlay = document.getElementById('auth-overlay');
         if(overlay) overlay.remove();
 
