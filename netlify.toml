@@ -1,0 +1,8 @@
+[build]
+  functions = "netlify/functions"
+  publish = "."  # أو اسم المجلد الذي يحتوي على index.html إذا كان مختلفاً
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

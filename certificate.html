@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Credential Verification | AI4ROADMAP</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:italic,wght@400;700&family=Montserrat:wght@400;500;600;700;800&family=Playfair+Display:wght@700;900&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- html2pdf Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --primary-navy: #0a192f;
+            --hitu-blue: #1e40af;
+            --accent-gold: #c5a059;
+            --gold-bright: #e2c275;
+            --text-main: #1a202c;
+            --text-muted: #4a5568;
+            --paper-white: #ffffff;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: #e2e8f0;
+            padding: 40px 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Floating Download Button */
+        .action-bar {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 100;
+            display: flex;
+            gap: 15px;
+        }
+        
+        .btn-download {
+            background: var(--primary-navy);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-weight: 700;
+            box-shadow: 0 10px 25px rgba(10, 25, 47, 0.4);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: 2px solid transparent;
+        }
+        
+        .btn-download:hover {
+            transform: translateY(-5px);
+            background: #112240;
+            box-shadow: 0 15px 30px rgba(10, 25, 47, 0.5);
+        }
+
+        /* Certificate Container */
+        .certificate-wrapper {
+            width: 1200px; 
+            height: 850px;
+            background: var(--paper-white);
+            position: relative;
+            padding: 25px 70px; 
+            box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+            margin: 0 auto;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* Abstract Shapes */
+        .shape-decor { position: absolute; pointer-events: none; z-index: 1; }
+        .shape-1 { top: -50px; right: -50px; width: 250px; height: 250px; background: linear-gradient(135deg, rgba(10, 25, 47, 0.04) 0%, rgba(197, 160, 89, 0.08) 100%); transform: rotate(15deg); clip-path: polygon(100% 0, 0 0, 100% 100%); }
+        .shape-2 { bottom: -50px; left: -50px; width: 300px; height: 300px; background: linear-gradient(45deg, rgba(30, 64, 175, 0.04) 0%, rgba(10, 25, 47, 0.06) 100%); transform: rotate(-10deg); clip-path: polygon(0 100%, 0 0, 100% 100%); }
+
+        /* Borders */
+        .outer-frame { position: absolute; top: 15px; left: 15px; right: 15px; bottom: 15px; border: 1px solid var(--accent-gold); pointer-events: none; z-index: 5; }
+        .inner-frame { position: absolute; top: 25px; left: 25px; right: 25px; bottom: 25px; border: 3px solid var(--primary-navy); pointer-events: none; z-index: 5; }
+
+        /* Header */
+        .cert-header { display: flex; justify-content: space-between; align-items: center; z-index: 10; border-bottom: 1.5px solid #eee; padding-bottom: 8px; }
+        .platform-brand-area { display: flex; align-items: center; gap: 12px; }
+        .platform-logo-img { height: 50px; object-fit: contain; }
+        .platform-name { font-weight: 900; font-size: 1.4rem; color: var(--primary-navy); letter-spacing: 1px; }
+        .university-logo-img { height: 40px; object-fit: contain; }
+
+        /* Typography */
+        .text-center-group { text-align: center; z-index: 10; padding: 0 20px; }
+        .cert-title { font-family: 'Playfair Display', serif; font-size: 2.6rem; color: var(--primary-navy); text-transform: uppercase; letter-spacing: 2px; line-height: 1.1; margin-top: 5px; }
+        .cert-subtitle { font-family: 'Montserrat', sans-serif; font-size: 0.7rem; color: var(--accent-gold); letter-spacing: 5px; text-transform: uppercase; font-weight: 800; margin-bottom: 5px; }
+        .recipient-name { font-family: 'Playfair Display', serif; font-size: 3rem; font-weight: 700; color: #000; margin: 10px 0; border-bottom: 2px solid #f8f8f8; display: inline-block; padding: 0 40px; }
+
+        /* Full Curriculum Transcript Grid */
+        .transcript-container { width: 100%; margin: 15px 0; display: grid; grid-template-columns: 3.2fr 1fr; gap: 20px; text-align: left; z-index: 10; }
+        .curriculum-matrix { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+        .module-box h4 { font-size: 0.65rem; font-weight: 800; color: var(--primary-navy); border-bottom: 1.5px solid var(--accent-gold); margin-bottom: 4px; text-transform: uppercase; }
+        .module-box ul { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+        .module-box li { font-size: 0.5rem; color: var(--text-muted); margin-bottom: 2px; list-style: none; padding-left: 8px; position: relative; line-height: 1.2; }
+        .module-box li::before { content: '•'; position: absolute; left: 0; color: var(--accent-gold); }
+
+        /* Stats */
+        .hours-badge { border-left: 2px solid var(--accent-gold); padding-left: 20px; display: flex; flex-direction: column; justify-content: center; }
+        .stat-item { margin-bottom: 8px; }
+        .stat-val { font-size: 1rem; font-weight: 900; color: var(--primary-navy); }
+        .stat-lbl { font-size: 0.6rem; text-transform: uppercase; color: var(--accent-gold); font-weight: 700; }
+
+        /* Capstone */
+        .capstone-box { background: rgba(10, 25, 47, 0.02); border: 1px dashed var(--accent-gold); padding: 8px; margin: 5px 0; text-align: center; z-index: 10; border-radius: 4px; }
+
+        /* Footer Fixed */
+        .cert-footer { display: grid; grid-template-columns: 1fr 120px 2fr; align-items: flex-end; z-index: 10; border-top: 1px solid #eee; padding-top: 8px; height: 110px; margin-bottom: 5px; }
+        .meta-area { font-size: 0.55rem; color: #94a3b8; line-height: 1.4; }
+
+        /* Gold Seal */
+        .gold-seal-wrapper { display: flex; justify-content: center; align-items: center; }
+        .gold-seal { width: 100px; height: 100px; filter: drop-shadow(0 4px 10px rgba(184, 134, 11, 0.3)); }
+
+        .sign-area { display: flex; justify-content: flex-end; gap: 20px; }
+        .sign-box { text-align: center; width: 180px; }
+        .signature-img { font-family: 'Dancing Script', cursive; font-size: 1.8rem; color: var(--primary-navy); line-height: 1; white-space: nowrap; }
+        .sign-line { border-top: 1.5px solid var(--primary-navy); margin-top: 5px; padding-top: 5px; font-size: 0.6rem; font-weight: 800; text-transform: uppercase; white-space: nowrap; }
+        .sign-title { font-size: 0.5rem; color: var(--text-muted); line-height: 1.1; }
+
+        /* Loading Overlay */
+        #loading-overlay {
+            position: fixed; inset: 0; background: #fff; z-index: 200; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: opacity 0.5s;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Action Bar -->
+    <div class="action-bar" id="actionBar">
+        <button onclick="downloadPDF()" class="btn-download">
+            <i class="fa-solid fa-file-pdf text-xl"></i>
+            <span>Download High-Res PDF</span>
+        </button>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loading-overlay">
+        <div class="w-16 h-16 border-4 border-gray-200 border-t-[#0a192f] rounded-full animate-spin mb-4"></div>
+        <p class="text-[#0a192f] font-bold tracking-widest uppercase text-sm">Verifying Credential...</p>
+    </div>
+
+    <!-- Certificate -->
+    <div id="certificate" class="certificate-wrapper">
+        <!-- Decor -->
+        <div class="shape-decor shape-1"></div><div class="shape-decor shape-2"></div>
+        <div class="outer-frame"></div><div class="inner-frame"></div>
+
+        <!-- Header -->
+        <div class="cert-header">
+            <div class="platform-brand-area">
+                <img src="https://img.sanishtech.com/u/489489f87f956119a4a3fda56ff76fb4.png" alt="AI4R" class="platform-logo-img">
+                <div class="platform-info"><div class="platform-name">AI4ROADMAP</div><div class="text-[7.5px] font-bold text-slate-500 uppercase">Academy • 100,000+ Global Members</div></div>
+            </div>
+            <div class="flex items-center gap-3 text-right">
+                <div class="partner-info"><p class="text-[8px] font-extrabold text-blue-900 uppercase">Academic Partner</p><p class="text-[7px] font-bold text-slate-400">HELWAN INTERNATIONAL UNIVERSITY</p></div>
+                <img src="https://img.sanishtech.com/u/267cfd3984721f55c6bdf723305be896.jpg" alt="HITU" class="university-logo-img">
+            </div>
+        </div>
+
+        <!-- Main Title Area -->
+        <div class="text-center-group">
+            <p class="cert-subtitle">Professional Engineering Credential</p>
+            <h1 id="certTitle" class="cert-title">Computing & Technology</h1>
+            <p class="text-slate-500 italic text-[10px] mt-2">This executive credential is hereby conferred upon</p>
+            <h2 id="studentName" class="recipient-name">Candidate Name</h2>
+            <p id="honorLevel" class="text-navy-900 font-extrabold text-[10px] tracking-[0.3em] uppercase mt-2">Successfully Completed</p>
+            <div id="courseDesc" class="max-w-[900px] mx-auto mt-3 text-[10.5px] text-slate-600 leading-tight text-center">
+                Recognizing the completion of an immersive curriculum. Mastery demonstrated across core engineering principles and practical implementation.
+            </div>
+        </div>
+
+        <!-- Dynamic Curriculum Transcript -->
+        <div class="transcript-container">
+            <div id="curriculumMatrix" class="curriculum-matrix">
+                <!-- Injected via JS -->
+            </div>
+
+            <div class="hours-badge">
+                <div class="stat-item"><p id="totalHours" class="stat-val">120+ HOURS</p><p class="stat-lbl">Contact Hours</p></div>
+                <div class="stat-item"><p id="totalProjects" class="stat-val">8 PROJECTS</p><p class="stat-lbl">Weekly Benchmarks</p></div>
+                <div class="stat-item"><p class="stat-val">PASS</p><p class="stat-lbl">Peer-Review Code</p></div>
+            </div>
+        </div>
+
+        <!-- Capstone -->
+        <div class="capstone-box">
+            <p class="text-[8px] font-bold text-accent-gold uppercase tracking-widest mb-0.5">Validated Capstone Project</p>
+            <p class="text-navy-900 font-extrabold text-[13px]"><span id="capstoneTitle">Final Engineering Capstone</span></p>
+            <p class="text-[8px] text-blue-600 font-bold tracking-wider opacity-70">VERIFIED SUBMISSION</p>
+        </div>
+
+        <!-- Footer -->
+        <div class="cert-footer">
+            <div class="meta-area">
+                <p>Registry ID: <span id="registryID" class="text-navy-900 font-bold">---</span></p>
+                <p>Verification: <span class="text-blue-800">ai4roadmap.com/verify</span></p>
+                <p class="mt-1">Issue Date: <span id="issueDate" class="text-navy-900">---</span></p>
+                <div class="mt-1" id="qrPlaceholder">
+                    <!-- QR Code Generated Here -->
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=Verify_AI4R" style="width: 40px; height: 40px; opacity: 0.8;" />
+                </div>
+            </div>
+            <div class="gold-seal-wrapper">
+                <svg class="gold-seal" viewBox="0 0 100 100">
+                    <defs><linearGradient id="premiumGold" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#d4af37"/><stop offset="30%" style="stop-color:#fcf6ba"/><stop offset="100%" style="stop-color:#b8860b"/></linearGradient></defs>
+                    <circle cx="50" cy="50" r="48" fill="url(#premiumGold)" stroke="#8b6508" stroke-width="0.5"/><circle cx="50" cy="50" r="44" fill="none" stroke="white" stroke-width="1.5" opacity="0.3"/><circle cx="50" cy="50" r="40" fill="url(#premiumGold)" stroke="#8b6508" stroke-width="0.5"/>
+                    <path d="M35 65 Q 30 50 35 35 M 65 65 Q 70 50 65 35" fill="none" stroke="#4d3a1a" stroke-width="1" opacity="0.4"/>
+                    <text x="50" y="47" text-anchor="middle" fill="#4d3a1a" font-size="10" font-weight="900">AI4R</text>
+                    <text x="50" y="56" text-anchor="middle" fill="#4d3a1a" font-size="3" font-weight="900" letter-spacing="0.5">PROFESSIONAL</text><text x="50" y="61" text-anchor="middle" fill="#4d3a1a" font-size="3" font-weight="900" letter-spacing="0.5">MASTERY</text>
+                    <path id="topCurve" d="M 24, 50 a 26,26 0 1,1 52,0" fill="none" /><text fill="#4d3a1a" font-size="3.2" font-weight="bold"><textPath href="#topCurve" startOffset="50%" text-anchor="middle">OFFICIAL ACADEMIC CREDENTIAL</textPath></text>
+                    <path id="bottomCurve" d="M 24, 50 a 26,26 0 1,0 52,0" fill="none" /><text fill="#4d3a1a" font-size="3.2" font-weight="bold"><textPath href="#bottomCurve" startOffset="50%" text-anchor="middle">AI4ROADMAP INSTITUTION</textPath></text>
+                    <text x="21" y="52" fill="#4d3a1a" font-size="5">★</text><text x="79" y="52" fill="#4d3a1a" font-size="5">★</text>
+                </svg>
+            </div>
+            <div class="sign-area">
+                <div class="sign-box"><div class="signature-img">Nadeem Badr</div><div class="sign-line">Nadeem Badr</div><div class="sign-title">Chief AI Architect & Founder<br>AI4Roadmap Platform</div></div>
+                <div class="sign-box"><div class="signature-img" style="font-size: 1rem;">HITU Academic Board</div><div class="sign-line">Academic Council</div><div class="sign-title">Helwan International Tech University<br>Certification Authority</div></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- COURSE DATABASE (Simulated Backend) ---
+        const courseDatabase = {
+            'ai': {
+                title: "Artificial Intelligence Engineering",
+                desc: "Recognizing the completion of a 16-week immersive curriculum. Mastery demonstrated across Neural Networks, LLM Engineering, and Scalable MLOps.",
+                hours: "250+ HOURS",
+                projects: "16 PROJECTS",
+                capstone: "Autonomous Neural Infrastructure MVP",
+                modules: [
+                    { title: "Month 1: Neural Foundations", items: ["Neural Networks from Scratch", "Autograd Engine", "Backprop Mechanics", "CNN Vision Architectures"] },
+                    { title: "Month 2: Language Mastery", items: ["Transformer Blocks & Attention", "GPT Decoder Implementation", "ShakespeareGPT Training", "Hugging Face Ecosystem"] },
+                    { title: "Month 3: Vision & GenAI", items: ["GAN Architectures (DCGAN)", "Diffusion Models", "YOLO Object Detection", "Multimodal CLIP Systems"] },
+                    { title: "Month 4: MLOps & Startup", items: ["FastAPI Backend Engineering", "Docker Containerization", "Cloud Deployment", "Capstone MVP Launch"] }
+                ]
+            },
+            'web': {
+                title: "Full Stack Web Development",
+                desc: "Certified proficiency in modern web architecture. Demonstrated expertise in React, Node.js, Database Design, and Cloud Infrastructure.",
+                hours: "200+ HOURS",
+                projects: "12 PROJECTS",
+                capstone: "Enterprise E-Commerce Platform",
+                modules: [
+                    { title: "Module 1: Frontend Engineering", items: ["Advanced HTML5/CSS3", "JavaScript ES6+ Deep Dive", "React.js & Hooks", "State Management (Redux)"] },
+                    { title: "Module 2: Backend Architecture", items: ["Node.js & Express runtime", "RESTful API Design", "Authentication (JWT/OAuth)", "Server-Side Rendering"] },
+                    { title: "Module 3: Data Systems", items: ["PostgreSQL & Relational Design", "MongoDB / NoSQL", "ORM Integration (Prisma)", "Caching Strategies (Redis)"] },
+                    { title: "Module 4: DevOps & CI/CD", items: ["Docker & Microservices", "AWS/Firebase Deployment", "Testing (Jest/Cypress)", "Performance Optimization"] }
+                ]
+            },
+            'marketing': {
+                title: "Digital Marketing Strategy",
+                desc: "Strategic mastery of the digital landscape. Expertise validated in SEO, Paid Acquisition, Content Strategy, and Data Analytics.",
+                hours: "150+ HOURS",
+                projects: "10 CAMPAIGNS",
+                capstone: "Global Brand Growth Strategy",
+                modules: [
+                    { title: "Quarter 1: SEO & Content", items: ["Keyword Research Strategy", "On-Page Technical SEO", "Content Marketing Funnels", "Copywriting Persuasion"] },
+                    { title: "Quarter 2: Paid Acquisition", items: ["Facebook/Meta Ads Manager", "Google Ads & SEM", "Retargeting Strategies", "Budget Optimization"] },
+                    { title: "Quarter 3: Analytics & CRM", items: ["Google Analytics 4 Mastery", "Data Visualization", "CRM Automation (HubSpot)", "Customer LTV Analysis"] },
+                    { title: "Quarter 4: Brand Strategy", items: ["Social Media Growth", "Influencer Marketing", "Crisis Management", "Integrated Launch Plan"] }
+                ]
+            }
+        };
+
+        // --- AUTOMATION SCRIPT ---
+        window.onload = function() {
+            // 1. Get Params
+            const params = new URLSearchParams(window.location.search);
+            
+            const studentName = params.get('student') || params.get('name') || "Student Name";
+            const courseKey = (params.get('course') || 'ai').toLowerCase(); // default to ai
+            const dateStr = params.get('date') || new Date().toISOString().split('T')[0];
+            const regID = params.get('id') || "AI4R-TEMP-" + Math.floor(Math.random()*10000);
+            
+            // 2. Populate Basic Info
+            document.getElementById('studentName').innerText = studentName;
+            document.getElementById('registryID').innerText = regID;
+            document.getElementById('issueDate').innerText = new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            
+            // 3. Update QR Code
+            const verifyLink = `https://ai4roadmap.com/verify?id=${regID}`;
+            document.getElementById('qrPlaceholder').innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(verifyLink)}" style="width: 45px; height: 45px; opacity: 0.9;" />`;
+
+            // 4. Populate Course Specific Data
+            const courseData = courseDatabase[courseKey.includes('web') ? 'web' : courseKey.includes('market') ? 'marketing' : 'ai'];
+            
+            document.getElementById('certTitle').innerText = courseData.title;
+            document.getElementById('courseDesc').innerText = courseData.desc;
+            document.getElementById('totalHours').innerText = courseData.hours;
+            document.getElementById('totalProjects').innerText = courseData.projects;
+            document.getElementById('capstoneTitle').innerText = courseData.capstone;
+
+            // 5. Build Modules Matrix
+            const matrixContainer = document.getElementById('curriculumMatrix');
+            matrixContainer.innerHTML = ''; // clear default
+            
+            courseData.modules.forEach(mod => {
+                const box = document.createElement('div');
+                box.className = 'module-box';
+                box.innerHTML = `
+                    <h4>${mod.title}</h4>
+                    <ul>
+                        ${mod.items.map(item => `<li>${item}</li>`).join('')}
+                    </ul>
+                `;
+                matrixContainer.appendChild(box);
+            });
+
+            // 6. Hide Loader
+            setTimeout(() => {
+                document.getElementById('loading-overlay').style.opacity = '0';
+                setTimeout(() => document.getElementById('loading-overlay').remove(), 500);
+            }, 800);
+        };
+
+        async function downloadPDF() {
+            const element = document.getElementById('certificate');
+            const btn = document.getElementById('actionBar');
+            if (!element) return;
+            
+            // Temporarily hide shadow/margins for clean print
+            btn.style.display = 'none';
+            element.style.boxShadow = 'none';
+            element.style.margin = '0';
+            
+            const name = document.getElementById('studentName').innerText;
+            const course = document.getElementById('certTitle').innerText;
+            
+            const opt = {
+                margin: 0,
+                filename: `Credential_${name.replace(/\s+/g, '_')}_${course.split(' ')[0]}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, letterRendering: true, scrollY: 0 },
+                jsPDF: { unit: 'px', format: [1200, 850], orientation: 'landscape' }
+            };
+
+            await html2pdf().set(opt).from(element).save();
+            
+            // Restore styles
+            btn.style.display = 'flex';
+            element.style.boxShadow = '';
+            element.style.margin = '';
+        }
+    </script>
+</body>
+</html>
